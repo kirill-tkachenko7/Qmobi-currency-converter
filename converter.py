@@ -35,5 +35,5 @@ class CurrencyConverter:
 
     def convert(self, amount: float, currency_from: str = 'USD', 
                 currency_to: str = 'RUB', date: dt.date = None) -> float:
-        rate = self.get_rate(currency_from, currency_from, date)
+        rate = self.get_rate(currency_from, currency_to, date)
         return amount * rate

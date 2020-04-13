@@ -3,7 +3,7 @@ from typing import Callable, Any
 
 
 def cache_results(storage_time: int = 60) -> Callable:
-    """Cache function return value for a given amount of time (in seconds)."""`
+    """Cache function return value for a given amount of time (in seconds)."""
 
     # cache is a dictionary of the following structure:
     # {
