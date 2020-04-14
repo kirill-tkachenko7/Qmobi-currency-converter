@@ -4,12 +4,13 @@ import datetime as dt
 import os
 from utils import cache_results
 from typing import Union, Any
+from responses import build_error
 
 # TODO store in env
 APP_ID = '51b21c5160074b08b63d560c40524987'
 
+
 class CurrencyConverter:
-    # TODO error handling
     def __init__(self):
         self.connection = http.client.HTTPConnection('openexchangerates.org')
 
@@ -25,73 +26,66 @@ class CurrencyConverter:
             source = f'historical/{date}.json'
         else:
             source = 'latest.json'
+
         try:
-            raise RuntimeError
             self.connection.request(
                 'GET', f'/api/{source}?app_id={APP_ID}')
             response = self.connection.getresponse()
-            data = json.loads(response.read())
-            return data
         except:
-            # clear cache
-            self.fetch_USD_rates.cache[(self,date)].pop()
-            return self.build_error(
+            # clear cache to be able to try again later.
+            self.fetch_USD_rates.cache.pop((self, date))
+            return build_error(
                 503,
                 'Service Unavailable',
                 'Failed to get response from downstream server'
-            ) 
+            )
 
-    def convert(self, amount: float=1, base_currency: str = 'USD', 
-                quote_currency: str = 'RUB', date: str = None) -> dict:
-        rates = self.fetch_USD_rates(date)
-        if 'error' in rates:
-            return rates
-        
+        data = json.loads(response.read())
+        return data
+
+    def convert(self, amount: float = 1, base_currency: str = 'USD',
+                quote_currency: str = 'RUB', date: str = None, **kwargs: Any) -> dict:
+        """Convert amount in base currency into amount in quote currency.
+
+        If base currency is not USD, get a cross rate from openexchangerates.org
+        and then convert the amount.
+        if openexchangerates.org returned an error, re-return that error, but convert it
+        to our JSON schema.
+        """
+        data = self.fetch_USD_rates(date)
+        if 'error' in data:
+            return build_error(status=data['status'], title=data['message'], detail=data['description'])
+
+        rates = data['rates']
         from_rate = rates.get(base_currency)
         if not from_rate:
-            return self.build_error(
+            return build_error(
                 404,
-                'base_currency rate not found',
-                'Make sure you specify currency in a 3-letter ISO format'
+                'Rate not found',
+                {
+                    'parameter': base_currency,
+                    'description': 'Make sure currency is in a 3-letter ISO format'
+                }
             )
         to_rate = rates.get(quote_currency)
         if not to_rate:
-            return self.build_error(
+            return build_error(
                 404,
-                'quote_currency rate not found',
-                'Make sure you specify currency in a 3-letter ISO format'
+                f'Rate not found',
+                {
+                    'parameter': quote_currency,
+                    'description': 'Make sure currency is in a 3-letter ISO format'
+                }
             )
 
         rate = to_rate/from_rate
         converted_amount = rate * amount
 
-        return self.build_response(
-            amount,
-            base_currency,
-            quote_currency,
-            date,
-            rate,
-            converted_amount
-        )
-
-    def build_error(self, status: int, message: str, description: str) -> dict:
-        error = {
-            'error': True,
-            'status': status,
-            'message': message,
-            'description': description,
-        }
-        return error
-    
-    def build_response(self, amount: int, base_currency: str, 
-                       quote_currency: str, date: str, exchange_rate: float, 
-                       converted_amount: float) -> dict:
-        response = {
-            'date': date,
+        return {
             'base': base_currency,
             'quote': quote_currency,
-            'rate': exchange_rate,
-            'base_amount': amount,
-            'quote_amount': converted_amount
+            'date': date,
+            'amount': amount,
+            'rate': rate,
+            'converted_amount': converted_amount,
         }
-        return response
