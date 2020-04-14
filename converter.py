@@ -13,13 +13,13 @@ class CurrencyConverter:
         self.connection = http.client.HTTPConnection('openexchangerates.org')
 
     @cache_results(storage_time=3600)
-    def fetch_rates(self, base_currency: str, date: dt.date = None) -> dict:
+    def fetch_rates(self, base_currency: str, date: str = None) -> dict:
         """Get all exchange rates for a given base currency for a given date.
 
         If date is not provided, return latest exchange rates.
         """
         if date:
-            source = f'historical/{date.isoformat()}.json'
+            source = f'historical/{date}.json'
         else:
             source = 'latest.json'
         self.connection.request(
@@ -29,11 +29,11 @@ class CurrencyConverter:
         return data.get('rates')
 
     def get_rate(self, currency_from: str, currency_to: str, 
-                 date: dt.date = None) -> float:
+                 date: str = None) -> float:
         rates = self.fetch_rates(currency_from, date)
         return rates.get(currency_to)
 
-    def convert(self, amount: float, currency_from: str = 'USD', 
-                currency_to: str = 'RUB', date: dt.date = None) -> float:
+    def convert(self, amount: float=1, currency_from: str = 'USD', 
+                currency_to: str = 'RUB', date: str = None) -> float:
         rate = self.get_rate(currency_from, currency_to, date)
         return amount * rate

@@ -1,8 +1,11 @@
 import datetime as dt
-from typing import Callable, Any
+from typing import Callable, Any, TypeVar
 
 
-def cache_results(storage_time: int = 60) -> Callable:
+Func = TypeVar('Func', bound=Callable[..., Any])
+
+
+def cache_results(storage_time: int = 60) -> Callable[[Func], Func]:
     """Cache function return value for a given amount of time (in seconds)."""
 
     # cache is a dictionary of the following structure:
@@ -14,8 +17,8 @@ def cache_results(storage_time: int = 60) -> Callable:
     # }
     cache = dict()
 
-    def _decorator(func: Callable) -> Callable:
-        def _wrapper(*args, **kwargs) -> Any:
+    def _decorator(func: Func) -> Func:
+        def _wrapper(*args: Any, **kwargs: Any) -> Any:
             cache_key = (args, frozenset(kwargs.items()))
 
             # if function was called with the same arguments
